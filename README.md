@@ -12,9 +12,35 @@ escで閉じます。
 Windows11  
 vs code  
 python3.13.2
-## モジュールのインストール
-仮想環境内  
+## 仮想環境の作り方・モジュールのインストール
+### vscode  
+拡張機能Python Environmentsをインストールする  
+サイドバー（アクティビティバー）のPython内からENVIRONMENT MANAGERSから環境の作成をする  
+プロジェクトの環境として設定する  
+->仮想環境ができました
+
+プロジェクトの依存関係をインストール 依存関係ファイルで見つかったパッケージをインストールします を選択
+requirements.txtをチェック、OK  
+->モジュールがインストールできました
+
+### 通常
+仮想環境を作成
+python -m venv .venv
+
+仮想環境への切り替え
+.venv\Scripts\activate.bat
+
+コマンドプロンプト先頭に下記が表示されたら切り替え完了
+(.venv)
+
+依存関係ファイルのパッケージをインストール
 python -m pip install -r requirements.txt
+
+### （requirements.txtの作成コマンド）
+pip freeze > requirements.txt
+
+## exeファイル化
+pyinstaller --noconsole --onefile --icon=myicon.ico --name=相互翻訳ツール main.py
 
 ## ツール
 PySide6...GUIアプリをpythonで開発するライブラリ（商用利用可）  
@@ -24,7 +50,4 @@ googletrans...非公式ですがgoogle翻訳が使用できるライブラリ（
 https://pypi.org/project/googletrans/  
 
 ## バイブコーディング
-今回GeminiやgithubCopilotを使用し、ツールの選定からコーディング、軽微な修正までやっていただき、1日で出来ました。便利ですね。  
-
-## 課題
-入力文字が英語なのに日本語判定となるバグがあるため判別プロセスを修正予定。
+今回GeminiやgithubCopilotを使用し、ツールの選定からコーディング、軽微な修正までやっていただきました。便利ですね。  
