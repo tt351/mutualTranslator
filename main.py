@@ -2,7 +2,9 @@ import sys
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                                QTextEdit, QLabel, QFrame, QPushButton)
 from PySide6.QtCore import Qt, QPoint, QSize, Slot, QTimer, QEvent
-from PySide6.QtGui import QMouseEvent, QKeyEvent
+from PySide6.QtGui import QMouseEvent, QKeyEvent, QIcon
+
+import os
 
 #翻訳側で使用
 import asyncio
@@ -10,11 +12,11 @@ from googletrans import Translator
 import re
 
 # 定数宣言（パラメータ）
-TRANSPARENT_VALUE = 0.4
-TRANSPARENT_TIME = 10000
-CONFIRM_TEXT_TIME = 1000
-FADE_TIME = 40
-FADE_STEP = 0.01
+TRANSPARENT_VALUE = 0.4     #非アクティブ状態のときの透明度（0.0～1.0）
+TRANSPARENT_TIME = 10000    #非アクティブ状態になってから透明化するまでの時間（ミリ秒）
+CONFIRM_TEXT_TIME = 1000    #テキスト入力が完了したとみなすまでの時間（ミリ秒）
+FADE_TIME = 40              #フェードアウトのアニメーションの更新間隔（ミリ秒）
+FADE_STEP = 0.01            #フェードアウトのアニメーションで透明度を減少させる量（0.0～1.0）
 
 class MutualTranslator(QWidget):
     def __init__(self):
@@ -24,6 +26,11 @@ class MutualTranslator(QWidget):
         # クラス内変数宣言
         self.old_pos = None
         self.current_opacity = 1.0       # 現在の透明度管理用
+
+        #アイコンの設定
+        icon_path = "myicon.ico"
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         # --- タイマーの設定 ---
         self.input_timer = QTimer(self)
@@ -122,17 +129,20 @@ class MutualTranslator(QWidget):
         self.setMinimumWidth(300)
         self.adjust_window_size()
 
+        self.reset_transparent()#ウィンドウを完全に不透明にし、透明化タイマースタート
+
     @Slot( str )
     async def translate_text(self, input_text:str)->str:
-        #この中のテキストで構成されてたら英語判定
-        en_pattern = re.compile(r'[a-zA-Z\s0-9\.?!]+')
-        if en_pattern.fullmatch(input_text):
-            src_lang = "en"
-            dest_lang = "ja"
-        else:
+        japanese_pattern = re.compile(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uFF61-\uFF9F]')
+        
+        if japanese_pattern.search(input_text):
             src_lang = "ja"
             dest_lang = "en"
-    
+        else:
+            src_lang = "en"
+            dest_lang = "ja"
+        
+
         async with Translator() as translator:
             output = await translator.translate(input_text,src=src_lang,dest=dest_lang)
             text = output.text
@@ -150,6 +160,7 @@ class MutualTranslator(QWidget):
             return
 
         try:
+            self.status_label.setText("翻訳中...")
             output_text = asyncio.run(self.translate_text(text))
             self.output_label.setText(output_text)            
         except Exception as e:
@@ -184,12 +195,19 @@ class MutualTranslator(QWidget):
 
     @Slot()
     def reset_inactivity_timer(self):
-        self.inactivity_timer.start(TRANSPARENT_TIME)
-
+        pass
     @Slot()
     def make_transparent(self):
         self.current_opacity = 1.0       # 現在の透明度管理用
         self.fade_timer.start(FADE_TIME)
+
+    @Slot()
+    def reset_transparent(self):#ウィンドウを完全に不透明に戻す
+        self.setWindowOpacity(1.0)  #透明度０
+        # self.inactivity_timer.stop()#透明化開始タイマーストップ
+        self.fade_timer.stop()#フェードアニメーションタイマーストップ
+        self.inactivity_timer.start(TRANSPARENT_TIME)
+                
 
     @Slot()
     def animate_fade_out(self):
@@ -209,11 +227,16 @@ class MutualTranslator(QWidget):
 
     # マウスドラッグによる移動
     def mousePressEvent(self, event:QMouseEvent):
+        self.reset_transparent()#ウィンドウを完全に不透明にし、透明化タイマースタート
+
         if event.button() == Qt.MouseButton.LeftButton:
             # クリック時の座標を保持
             self.old_pos = event.globalPosition().toPoint()
+        
+        # super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event:QMouseEvent):
+        self.reset_transparent()#ウィンドウを完全に不透明にし、透明化タイマースタート
         if self.old_pos is not None:
             # 移動量を計算してウィンドウを動かす
             delta = event.globalPosition().toPoint() - self.old_pos
@@ -233,13 +256,10 @@ class MutualTranslator(QWidget):
         if event.type() == QEvent.Type.ActivationChange:
             if self.isActiveWindow():
                 # print("ウィンドウがアクティブになりました")
-                self.setWindowOpacity(1.0)  #透明度０
-                self.inactivity_timer.stop()#透明化開始タイマーストップ
-                self.fade_timer.stop()#フェードアニメーションタイマーストップ
                 self.input_edit.setFocus()
             else:
                 # print("ウィンドウが非アクティブになりました")
-                self.reset_inactivity_timer()#タイマースタート
+                pass
         super().changeEvent(event)
 
     # 入力監視
@@ -248,6 +268,7 @@ class MutualTranslator(QWidget):
         # タイマーを1000ミリ秒（1秒）でリスタート
         # 1秒以内に次の入力があれば、前のタイマーは破棄されます
         self.input_timer.start(CONFIRM_TEXT_TIME)
+        self.reset_transparent()#ウィンドウを完全に不透明にし、透明化タイマースタート
 
 
 if __name__ == "__main__":

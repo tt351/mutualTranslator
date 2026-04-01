@@ -1,1 +1,5 @@
 .venv*/
+build/
+dist/
+test.py
+*.spec
